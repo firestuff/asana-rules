@@ -62,7 +62,7 @@ func NewClientFromEnv() *Client {
   return NewClient(os.Getenv("ASANA_TOKEN"))
 }
 
-func (c *Client) Me() (*User, error) {
+func (c *Client) GetMe() (*User, error) {
   resp := &userResponse{}
   err := c.get("users/me", nil, resp)
   if err != nil {
@@ -71,7 +71,7 @@ func (c *Client) Me() (*User, error) {
   return resp.Data, nil
 }
 
-func (c *Client) Projects(workspaceGID string) ([]*Project, error) {
+func (c *Client) GetProjects(workspaceGID string) ([]*Project, error) {
   resp := &projectsResponse{}
   path := fmt.Sprintf("workspaces/%s/projects", workspaceGID)
   err := c.get(path, nil, resp)
@@ -81,7 +81,17 @@ func (c *Client) Projects(workspaceGID string) ([]*Project, error) {
   return resp.Data, nil
 }
 
-func (c *Client) Workspaces() ([]*Workspace, error) {
+func (c *Client) GetUserTaskList(userGID string) (*UserTaskList, error) {
+  resp := &userTaskListResponse{}
+  path := fmt.Sprintf("users/%s/user_task_list", userGID)
+  err := c.get(path, nil, resp)
+  if err != nil {
+    return nil, err
+  }
+  return resp.Data, nil
+}
+
+func (c *Client) GetWorkspaces() ([]*Workspace, error) {
   resp := &workspacesResponse{}
   err := c.get("workspaces", nil, resp)
   if err != nil {
@@ -91,8 +101,8 @@ func (c *Client) Workspaces() ([]*Workspace, error) {
 }
 
 // Returns one workspace if there is only one
-func (c *Client) Workspace() (*Workspace, error) {
-  workspaces, err := c.Workspaces()
+func (c *Client) GetWorkspace() (*Workspace, error) {
+  workspaces, err := c.GetWorkspaces()
   if err != nil {
     return nil, err
   }

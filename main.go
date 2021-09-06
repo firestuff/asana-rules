@@ -8,18 +8,18 @@ func main() {
   a := asana.NewClientFromEnv()
 
   /*
-  me, err := a.Me()
+  me, err := a.GetMe()
   if err != nil {
     panic(err)
   }
   */
 
-  wrk, err := a.Workspace()
+  wrk, err := a.GetWorkspace()
   if err != nil {
     panic(err)
   }
 
-  prjs, err := a.Projects(wrk.GID)
+  prjs, err := a.GetProjects(wrk.GID)
   if err != nil {
     panic(err)
   }
