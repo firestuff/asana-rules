@@ -21,14 +21,14 @@ func main() {
 
 	fmt.Printf("Workspace: %s\n", wrk)
 
-	utl, err := a.GetUserTaskList(me.GID, wrk.GID)
+	utl, err := a.GetUserTaskList(me, wrk)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("User Task List: %s\n", utl)
 
-	secs, err := a.GetSections(utl.GID)
+	secs, err := a.GetSections(utl)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +37,12 @@ func main() {
 	for _, sec := range secs {
 		fmt.Printf("\t%s\n", sec)
 
-		tasks, err := a.GetTasksFromSection(sec.GID)
+		q := &asana.SearchQuery{
+			SectionsAny: []*asana.Section{sec},
+			Completed:   asana.FALSE,
+		}
+
+		tasks, err := a.Search(wrk, q)
 		if err != nil {
 			panic(err)
 		}

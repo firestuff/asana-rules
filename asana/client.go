@@ -6,11 +6,22 @@ import "fmt"
 import "net/http"
 import "net/url"
 import "os"
+import "strings"
 
 import "github.com/firestuff/asana-rules/headers"
 
+var _TRUE = true
+var TRUE = &_TRUE
+var _FALSE = false
+var FALSE = &_FALSE
+
 type Client struct {
 	client *http.Client
+}
+
+type SearchQuery struct {
+	SectionsAny []*Section
+	Completed   *bool
 }
 
 type Project struct {
@@ -24,8 +35,9 @@ type Section struct {
 }
 
 type Task struct {
-	GID  string `json:"gid"`
-	Name string `json:"name"`
+	GID       string `json:"gid"`
+	Name      string `json:"name"`
+	HTMLNotes string `json:"html_notes"`
 }
 
 type User struct {
@@ -34,14 +46,13 @@ type User struct {
 	Email string `json:"email"`
 }
 
-type UserTaskList struct {
+type Workspace struct {
 	GID  string `json:"gid"`
 	Name string `json:"name"`
 }
 
-type Workspace struct {
-	GID  string `json:"gid"`
-	Name string `json:"name"`
+type projectResponse struct {
+	Data *Project `json:"data"`
 }
 
 type projectsResponse struct {
@@ -58,10 +69,6 @@ type tasksResponse struct {
 
 type userResponse struct {
 	Data *User `json:"data"`
-}
-
-type userTaskListResponse struct {
-	Data *UserTaskList `json:"data"`
 }
 
 type workspacesResponse struct {
@@ -93,8 +100,8 @@ func (c *Client) GetMe() (*User, error) {
 	return resp.Data, nil
 }
 
-func (c *Client) GetProjects(workspaceGID string) ([]*Project, error) {
-	path := fmt.Sprintf("workspaces/%s/projects", workspaceGID)
+func (c *Client) GetProjects(workspace *Workspace) ([]*Project, error) {
+	path := fmt.Sprintf("workspaces/%s/projects", workspace.GID)
 	resp := &projectsResponse{}
 	err := c.get(path, nil, resp)
 	if err != nil {
@@ -103,8 +110,8 @@ func (c *Client) GetProjects(workspaceGID string) ([]*Project, error) {
 	return resp.Data, nil
 }
 
-func (c *Client) GetSections(projectGID string) ([]*Section, error) {
-	path := fmt.Sprintf("projects/%s/sections", projectGID)
+func (c *Client) GetSections(project *Project) ([]*Section, error) {
+	path := fmt.Sprintf("projects/%s/sections", project.GID)
 	resp := &sectionsResponse{}
 	err := c.get(path, nil, resp)
 	if err != nil {
@@ -113,8 +120,8 @@ func (c *Client) GetSections(projectGID string) ([]*Section, error) {
 	return resp.Data, nil
 }
 
-func (c *Client) GetTasksFromSection(sectionGID string) ([]*Task, error) {
-	path := fmt.Sprintf("sections/%s/tasks", sectionGID)
+func (c *Client) GetTasksFromSection(section *Section) ([]*Task, error) {
+	path := fmt.Sprintf("sections/%s/tasks", section.GID)
 	resp := &tasksResponse{}
 	err := c.get(path, nil, resp)
 	if err != nil {
@@ -123,11 +130,11 @@ func (c *Client) GetTasksFromSection(sectionGID string) ([]*Task, error) {
 	return resp.Data, nil
 }
 
-func (c *Client) GetUserTaskList(userGID, workspaceGID string) (*UserTaskList, error) {
-	path := fmt.Sprintf("users/%s/user_task_list", userGID)
+func (c *Client) GetUserTaskList(user *User, workspace *Workspace) (*Project, error) {
+	path := fmt.Sprintf("users/%s/user_task_list", user.GID)
 	values := &url.Values{}
-	values.Add("workspace", workspaceGID)
-	resp := &userTaskListResponse{}
+	values.Add("workspace", workspace.GID)
+	resp := &projectResponse{}
 	err := c.get(path, values, resp)
 	if err != nil {
 		return nil, err
@@ -156,6 +163,34 @@ func (c *Client) GetWorkspace() (*Workspace, error) {
 	}
 
 	return workspaces[0], nil
+}
+
+func (c *Client) Search(workspace *Workspace, q *SearchQuery) ([]*Task, error) {
+	path := fmt.Sprintf("workspaces/%s/tasks/search", workspace.GID)
+
+	values := &url.Values{}
+
+	values.Add("opt_fields", "html_notes,name")
+
+	if len(q.SectionsAny) > 0 {
+		gids := []string{}
+		for _, sec := range q.SectionsAny {
+			gids = append(gids, sec.GID)
+		}
+		values.Add("sections.any", strings.Join(gids, ","))
+	}
+
+	if q.Completed != nil {
+		values.Add("completed", fmt.Sprintf("%t", *q.Completed))
+	}
+
+	resp := &tasksResponse{}
+	err := c.get(path, values, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+
 }
 
 const baseURL = "https://app.asana.com/api/1.0/"
@@ -205,10 +240,6 @@ func (t *Task) String() string {
 
 func (u *User) String() string {
 	return fmt.Sprintf("%s (%s <%s>)", u.GID, u.Name, u.Email)
-}
-
-func (utl *UserTaskList) String() string {
-	return fmt.Sprintf("%s (%s)", utl.GID, utl.Name)
 }
 
 func (wrk *Workspace) String() string {
