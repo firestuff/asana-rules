@@ -8,7 +8,9 @@ import "net/url"
 import "os"
 import "strings"
 
+import "cloud.google.com/go/civil"
 import "github.com/firestuff/asana-rules/headers"
+import "golang.org/x/net/html"
 
 var _TRUE = true
 var TRUE = &_TRUE
@@ -35,9 +37,12 @@ type Section struct {
 }
 
 type Task struct {
-	GID       string `json:"gid"`
-	Name      string `json:"name"`
-	HTMLNotes string `json:"html_notes"`
+	GID             string      `json:"gid"`
+	Name            string      `json:"name"`
+	DueOn           string      `json:"due_on"`
+	ParsedDueOn     *civil.Date `json:"-"`
+	HTMLNotes       string      `json:"html_notes"`
+	ParsedHTMLNotes *html.Node  `json:"-"`
 }
 
 type User struct {
@@ -170,7 +175,7 @@ func (c *Client) Search(workspace *Workspace, q *SearchQuery) ([]*Task, error) {
 
 	values := &url.Values{}
 
-	values.Add("opt_fields", "html_notes,name")
+	values.Add("opt_fields", "due_on,html_notes,name")
 
 	if len(q.SectionsAny) > 0 {
 		gids := []string{}
@@ -189,6 +194,14 @@ func (c *Client) Search(workspace *Workspace, q *SearchQuery) ([]*Task, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	for _, task := range resp.Data {
+		err := task.parse()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return resp.Data, nil
 
 }
@@ -230,6 +243,10 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	return nil
 }
 
+func (p *Project) String() string {
+	return fmt.Sprintf("%s (%s)", p.GID, p.Name)
+}
+
 func (s *Section) String() string {
 	return fmt.Sprintf("%s (%s)", s.GID, s.Name)
 }
@@ -244,4 +261,23 @@ func (u *User) String() string {
 
 func (wrk *Workspace) String() string {
 	return fmt.Sprintf("%s (%s)", wrk.GID, wrk.Name)
+}
+
+func (t *Task) parse() error {
+	r := strings.NewReader(t.HTMLNotes)
+	root, err := html.Parse(r)
+	if err != nil {
+		return err
+	}
+	t.ParsedHTMLNotes = root
+
+	if t.DueOn != "" {
+		d, err := civil.ParseDate(t.DueOn)
+		if err != nil {
+			return err
+		}
+		t.ParsedDueOn = &d
+	}
+
+	return nil
 }
