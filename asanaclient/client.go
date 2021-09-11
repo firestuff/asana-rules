@@ -1,4 +1,4 @@
-package asana
+package asanaclient
 
 import "bytes"
 import "encoding/json"
