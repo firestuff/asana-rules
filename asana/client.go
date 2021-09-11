@@ -1,8 +1,9 @@
 package asana
 
+import "bytes"
 import "encoding/json"
-import "io/ioutil"
 import "fmt"
+import "io/ioutil"
 import "net/http"
 import "net/url"
 import "os"
@@ -56,6 +57,18 @@ type Workspace struct {
 	Name string `json:"name"`
 }
 
+type addTaskDetails struct {
+	Task string `json:"task"`
+}
+
+type addTaskRequest struct {
+	Data *addTaskDetails `json:"data"`
+}
+
+type emptyResponse struct {
+	Data interface{} `json:"data"`
+}
+
 type projectResponse struct {
 	Data *Project `json:"data"`
 }
@@ -94,6 +107,24 @@ func NewClient(token string) *Client {
 
 func NewClientFromEnv() *Client {
 	return NewClient(os.Getenv("ASANA_TOKEN"))
+}
+
+func (c *Client) AddTaskToSection(task *Task, section *Section) error {
+	req := &addTaskRequest{
+		Data: &addTaskDetails{
+			Task: task.GID,
+		},
+	}
+
+	resp := &emptyResponse{}
+
+	path := fmt.Sprintf("sections/%s/addTask", section.GID)
+	err := c.post(path, req, resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Client) GetMe() (*User, error) {
@@ -217,6 +248,41 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	url := fmt.Sprintf("%s%s?%s", baseURL, path, values.Encode())
 
 	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 200 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("%s: %s", resp.Status, string(body))
+	}
+
+	dec := json.NewDecoder(resp.Body)
+	err = dec.Decode(out)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) post(path string, body interface{}, out interface{}) error {
+	url := fmt.Sprintf("%s%s", baseURL, path)
+
+	enc, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(enc))
 	if err != nil {
 		return err
 	}

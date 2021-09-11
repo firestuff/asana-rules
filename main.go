@@ -37,6 +37,10 @@ func main() {
 	for _, sec := range secs {
 		fmt.Printf("\t%s\n", sec)
 
+		if sec.Name != "Recently Assigned" {
+			continue
+		}
+
 		q := &asana.SearchQuery{
 			SectionsAny: []*asana.Section{sec},
 			Completed:   asana.FALSE,
@@ -49,6 +53,9 @@ func main() {
 
 		for _, task := range tasks {
 			fmt.Printf("\t\t%s\n", task)
+			a.AddTaskToSection(task, &asana.Section{
+				GID: "1200372179004456",
+			})
 		}
 	}
 }
