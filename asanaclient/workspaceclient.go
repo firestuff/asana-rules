@@ -24,6 +24,8 @@ type SearchQuery struct {
 	DueOn       *civil.Date
 	DueBefore   *civil.Date
 	DueAfter    *civil.Date
+	TagsAny     []*Tag
+	TagsNot     []*Tag
 }
 
 type Project struct {
@@ -32,6 +34,11 @@ type Project struct {
 }
 
 type Section struct {
+	GID  string `json:"gid"`
+	Name string `json:"name"`
+}
+
+type Tag struct {
 	GID  string `json:"gid"`
 	Name string `json:"name"`
 }
@@ -81,6 +88,10 @@ type projectsResponse struct {
 
 type sectionsResponse struct {
 	Data []*Section `json:"data"`
+}
+
+type tagsResponse struct {
+	Data []*Tag `json:"data"`
 }
 
 type tasksResponse struct {
@@ -166,6 +177,30 @@ func (wc *WorkspaceClient) GetSectionByName(project *Project, name string) (*Sec
 	return sec, nil
 }
 
+func (wc *WorkspaceClient) GetTags() ([]*Tag, error) {
+	path := fmt.Sprintf("workspaces/%s/tags", wc.workspace.GID)
+	resp := &tagsResponse{}
+	err := wc.client.get(path, nil, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+func (wc *WorkspaceClient) GetTagsByName() (map[string]*Tag, error) {
+	tags, err := wc.GetTags()
+	if err != nil {
+		return nil, err
+	}
+
+	tagsByName := map[string]*Tag{}
+	for _, tag := range tags {
+		tagsByName[tag.Name] = tag
+	}
+
+	return tagsByName, err
+}
+
 func (wc *WorkspaceClient) GetTasksFromSection(section *Section) ([]*Task, error) {
 	path := fmt.Sprintf("sections/%s/tasks", section.GID)
 	resp := &tasksResponse{}
@@ -234,6 +269,22 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 
 	if q.DueAfter != nil {
 		values.Add("due_on.after", q.DueAfter.String())
+	}
+
+	if len(q.TagsAny) > 0 {
+		gids := []string{}
+		for _, sec := range q.TagsAny {
+			gids = append(gids, sec.GID)
+		}
+		values.Add("tags.any", strings.Join(gids, ","))
+	}
+
+	if len(q.TagsNot) > 0 {
+		gids := []string{}
+		for _, sec := range q.TagsNot {
+			gids = append(gids, sec.GID)
+		}
+		values.Add("tags.not", strings.Join(gids, ","))
 	}
 
 	resp := &tasksResponse{}

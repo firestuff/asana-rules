@@ -1,6 +1,7 @@
 package asanarules
 
 import "fmt"
+import "math/rand"
 import "time"
 
 import "cloud.google.com/go/civil"
@@ -12,8 +13,8 @@ type taskFilter func(*asanaclient.WorkspaceClient, *asanaclient.Task) (bool, err
 type workspaceClientGetter func(*asanaclient.Client) (*asanaclient.WorkspaceClient, error)
 
 type periodic struct {
-	duration time.Duration
-	done     chan bool
+	period int
+	done   chan bool
 
 	workspaceClientGetter workspaceClientGetter
 	queryMutators         []queryMutator
@@ -25,8 +26,8 @@ var periodics = []*periodic{}
 
 func EverySeconds(seconds int) *periodic {
 	ret := &periodic{
-		duration: time.Duration(seconds) * time.Second,
-		done:     make(chan bool),
+		period: seconds,
+		done:   make(chan bool),
 	}
 
 	periodics = append(periodics, ret)
@@ -157,6 +158,59 @@ func (p *periodic) OnlyComplete() *periodic {
 	return p
 }
 
+func (p *periodic) WithTagsAnyOf(names ...string) *periodic {
+	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+		if len(q.TagsAny) > 0 {
+			return fmt.Errorf("Multiple clauses set TagsAny")
+		}
+
+		tagsByName, err := wc.GetTagsByName()
+		if err != nil {
+			return err
+		}
+
+		for _, name := range names {
+			tag, found := tagsByName[name]
+			if !found {
+				return fmt.Errorf("Tag '%s' not found", name)
+			}
+
+			q.TagsAny = append(q.TagsAny, tag)
+		}
+
+		return nil
+	})
+
+	return p
+}
+
+func (p *periodic) WithoutTagsAnyOf(names ...string) *periodic {
+	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+		if len(q.TagsNot) > 0 {
+			return fmt.Errorf("Multiple clauses set TagsNot")
+		}
+
+		tagsByName, err := wc.GetTagsByName()
+		if err != nil {
+			return err
+		}
+
+		for _, name := range names {
+			tag, found := tagsByName[name]
+			if !found {
+				return fmt.Errorf("Tag '%s' not found", name)
+			}
+
+			q.TagsNot = append(q.TagsNot, tag)
+		}
+
+		return nil
+	})
+
+	return p
+}
+
+// Task filters
 func (p *periodic) WithoutDue() *periodic {
 	// We can't mutate the query because due_on=null is buggy in the Asana API
 	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
@@ -212,10 +266,9 @@ func (p *periodic) wait() {
 }
 
 func (p *periodic) loop(client *asanaclient.Client) {
-	ticker := time.NewTicker(p.duration)
-
 	for {
-		<-ticker.C
+		time.Sleep(time.Duration(rand.Intn(p.period)) * time.Second)
+
 		err := p.exec(client)
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err)

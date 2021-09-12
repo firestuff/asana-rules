@@ -5,11 +5,21 @@ import . "github.com/firestuff/asana-rules/asanarules"
 func main() {
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
-		InMyTasksSections("Recently Assigned", "Upcoming", "Later", "Someday").
+		InMyTasksSections("Recently Assigned", "Tonight", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		DueInDays(0).
+		WithoutTagsAnyOf("section=Tonight").
 		PrintTasks().
 		MoveToMyTasksSection("Today")
+
+	EverySeconds(30).
+		InWorkspace("flamingcow.io").
+		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Upcoming", "Later", "Someday").
+		OnlyIncomplete().
+		DueInDays(0).
+		WithTagsAnyOf("section=Tonight").
+		PrintTasks().
+		MoveToMyTasksSection("Tonight")
 
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
