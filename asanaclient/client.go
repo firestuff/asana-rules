@@ -40,15 +40,15 @@ func NewClientFromEnv() *Client {
 }
 
 func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
-  wrk, err := c.getWorkspaceByName(name)
-  if err != nil {
-    return nil, err
-  }
+	wrk, err := c.getWorkspaceByName(name)
+	if err != nil {
+		return nil, err
+	}
 
-  return &WorkspaceClient{
-    client: c,
-    workspace: wrk,
-  }, nil
+	return &WorkspaceClient{
+		client:    c,
+		workspace: wrk,
+	}, nil
 }
 
 func (c *Client) getWorkspaces() ([]*workspace, error) {
@@ -66,13 +66,13 @@ func (c *Client) getWorkspaceByName(name string) (*workspace, error) {
 		return nil, err
 	}
 
-  for _, wrk := range wrks {
-    if wrk.Name == name {
-      return wrk, nil
-    }
-  }
+	for _, wrk := range wrks {
+		if wrk.Name == name {
+			return wrk, nil
+		}
+	}
 
-  return nil, fmt.Errorf("Workspace `%s` not found", name)
+	return nil, fmt.Errorf("Workspace `%s` not found", name)
 }
 
 const baseURL = "https://app.asana.com/api/1.0/"
@@ -98,8 +98,8 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	dec := json.NewDecoder(resp.Body)
 
 	if resp.StatusCode != 200 {
-    errorResp := &errorResponse{}
-    err = dec.Decode(errorResp)
+		errorResp := &errorResponse{}
+		err = dec.Decode(errorResp)
 		if err != nil {
 			return err
 		}

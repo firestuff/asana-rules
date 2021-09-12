@@ -13,14 +13,16 @@ var _FALSE = false
 var FALSE = &_FALSE
 
 type WorkspaceClient struct {
-  client *Client
-  workspace *workspace
+	client    *Client
+	workspace *workspace
 }
 
 type SearchQuery struct {
 	SectionsAny []*Section
 	Completed   *bool
-  DueOn       *string
+	DueOn       *civil.Date
+	DueBefore   *civil.Date
+	DueAfter    *civil.Date
 }
 
 type Project struct {
@@ -61,11 +63,11 @@ type emptyResponse struct {
 }
 
 type errorDetails struct {
-  Message string `json:"message"`
+	Message string `json:"message"`
 }
 
 type errorResponse struct {
-  Errors []*errorDetails `json:"errors"`
+	Errors []*errorDetails `json:"errors"`
 }
 
 type projectResponse struct {
@@ -135,6 +137,34 @@ func (wc *WorkspaceClient) GetSections(project *Project) ([]*Section, error) {
 	return resp.Data, nil
 }
 
+func (wc *WorkspaceClient) GetSectionsByName(project *Project) (map[string]*Section, error) {
+	secs, err := wc.GetSections(project)
+	if err != nil {
+		return nil, err
+	}
+
+	secsByName := map[string]*Section{}
+	for _, sec := range secs {
+		secsByName[sec.Name] = sec
+	}
+
+	return secsByName, err
+}
+
+func (wc *WorkspaceClient) GetSectionByName(project *Project, name string) (*Section, error) {
+	secsByName, err := wc.GetSectionsByName(project)
+	if err != nil {
+		return nil, err
+	}
+
+	sec, found := secsByName[name]
+	if !found {
+		return nil, fmt.Errorf("Section '%s' not found", name)
+	}
+
+	return sec, nil
+}
+
 func (wc *WorkspaceClient) GetTasksFromSection(section *Section) ([]*Task, error) {
 	path := fmt.Sprintf("sections/%s/tasks", section.GID)
 	resp := &tasksResponse{}
@@ -157,6 +187,15 @@ func (wc *WorkspaceClient) GetUserTaskList(user *User) (*Project, error) {
 	return resp.Data, nil
 }
 
+func (wc *WorkspaceClient) GetMyUserTaskList() (*Project, error) {
+	me, err := wc.GetMe()
+	if err != nil {
+		return nil, err
+	}
+
+	return wc.GetUserTaskList(me)
+}
+
 func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 	path := fmt.Sprintf("workspaces/%s/tasks/search", wc.workspace.GID)
 
@@ -176,9 +215,17 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 		values.Add("completed", fmt.Sprintf("%t", *q.Completed))
 	}
 
-  if q.DueOn != nil {
-    values.Add("due_on", *q.DueOn)
-  }
+	if q.DueOn != nil {
+		values.Add("due_on", q.DueOn.String())
+	}
+
+	if q.DueBefore != nil {
+		values.Add("due_on.before", q.DueBefore.String())
+	}
+
+	if q.DueAfter != nil {
+		values.Add("due_on.after", q.DueAfter.String())
+	}
 
 	resp := &tasksResponse{}
 	err := wc.client.get(path, values, resp)
