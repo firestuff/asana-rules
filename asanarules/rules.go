@@ -8,6 +8,7 @@ import "github.com/firestuff/asana-rules/asanaclient"
 
 type queryMutator func(*asanaclient.WorkspaceClient, *asanaclient.SearchQuery) error
 type taskActor func(*asanaclient.WorkspaceClient, *asanaclient.Task) error
+type taskFilter func(*asanaclient.WorkspaceClient, *asanaclient.Task) (bool, error)
 type workspaceClientGetter func(*asanaclient.Client) (*asanaclient.WorkspaceClient, error)
 
 type periodic struct {
@@ -16,6 +17,7 @@ type periodic struct {
 
 	workspaceClientGetter workspaceClientGetter
 	queryMutators         []queryMutator
+	taskFilters           []taskFilter
 	taskActors            []taskActor
 }
 
@@ -155,6 +157,15 @@ func (p *periodic) OnlyComplete() *periodic {
 	return p
 }
 
+func (p *periodic) WithoutDue() *periodic {
+	// We can't mutate the query because due_on=null is buggy in the Asana API
+	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
+		return t.ParsedDueOn == nil, nil
+	})
+
+	return p
+}
+
 // Task actors
 func (p *periodic) MoveToMyTasksSection(name string) *periodic {
 	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
@@ -235,7 +246,28 @@ func (p *periodic) exec(c *asanaclient.Client) error {
 		return err
 	}
 
+	filteredTasks := []*asanaclient.Task{}
 	for _, task := range tasks {
+		included := true
+
+		for _, filter := range p.taskFilters {
+			include, err := filter(wc, task)
+			if err != nil {
+				return err
+			}
+
+			if !include {
+				included = false
+				break
+			}
+		}
+
+		if included {
+			filteredTasks = append(filteredTasks, task)
+		}
+	}
+
+	for _, task := range filteredTasks {
 		for _, act := range p.taskActors {
 			err = act(wc, task)
 			if err != nil {

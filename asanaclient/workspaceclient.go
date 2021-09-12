@@ -20,6 +20,7 @@ type WorkspaceClient struct {
 type SearchQuery struct {
 	SectionsAny []*Section
 	Completed   *bool
+	Due         *bool
 	DueOn       *civil.Date
 	DueBefore   *civil.Date
 	DueAfter    *civil.Date
@@ -213,6 +214,14 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 
 	if q.Completed != nil {
 		values.Add("completed", fmt.Sprintf("%t", *q.Completed))
+	}
+
+	if q.Due != nil {
+		if *q.Due {
+			values.Add("due_on.after", "1970-01-01")
+		} else {
+			values.Add("due_on", "null")
+		}
 	}
 
 	if q.DueOn != nil {
