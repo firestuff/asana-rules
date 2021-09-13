@@ -2,10 +2,12 @@ package asanarules
 
 import "fmt"
 import "math/rand"
+import "strings"
 import "time"
 
 import "cloud.google.com/go/civil"
 import "github.com/firestuff/asana-rules/asanaclient"
+import "golang.org/x/net/html"
 
 type queryMutator func(*asanaclient.WorkspaceClient, *asanaclient.SearchQuery) error
 type taskActor func(*asanaclient.WorkspaceClient, *asanaclient.Task) error
@@ -211,6 +213,14 @@ func (p *periodic) WithoutTagsAnyOf(names ...string) *periodic {
 }
 
 // Task filters
+func (p *periodic) WithUnlinkedURL() *periodic {
+	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
+		return hasUnlinkedURL(t.ParsedHTMLNotes), nil
+	})
+
+	return p
+}
+
 func (p *periodic) WithoutDue() *periodic {
 	// We can't mutate the query because due_on=null is buggy in the Asana API
 	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
@@ -221,6 +231,16 @@ func (p *periodic) WithoutDue() *periodic {
 }
 
 // Task actors
+func (p *periodic) FixUnlinkedURL() *periodic {
+	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
+		// TODO: Fix tree
+		// TODO: Update task
+		return nil
+	})
+
+	return p
+}
+
 func (p *periodic) MoveToMyTasksSection(name string) *periodic {
 	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
 		utl, err := wc.GetMyUserTaskList()
@@ -248,6 +268,7 @@ func (p *periodic) PrintTasks() *periodic {
 	return p
 }
 
+// Infra
 func (p *periodic) start(client *asanaclient.Client) {
 	err := p.validate()
 	if err != nil {
@@ -330,4 +351,31 @@ func (p *periodic) exec(c *asanaclient.Client) error {
 	}
 
 	return nil
+}
+
+// Helpers
+func hasUnlinkedURL(node *html.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	if node.Type == html.ElementNode && node.Data == "a" {
+		// Don't go down this tree, since it's a link
+		return false
+	}
+
+	if node.Type == html.TextNode && (strings.HasPrefix(node.Data, "http://") ||
+		strings.HasPrefix(node.Data, "https://")) {
+		return true
+	}
+
+	if hasUnlinkedURL(node.FirstChild) {
+		return true
+	}
+
+	if hasUnlinkedURL(node.NextSibling) {
+		return true
+	}
+
+	return false
 }

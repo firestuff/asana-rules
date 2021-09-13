@@ -94,6 +94,7 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
 
@@ -131,6 +132,7 @@ func (c *Client) post(path string, body interface{}, out interface{}) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, err := ioutil.ReadAll(resp.Body)
