@@ -231,16 +231,6 @@ func (p *periodic) WithoutDue() *periodic {
 }
 
 // Task actors
-func (p *periodic) FixUnlinkedURL() *periodic {
-	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
-		// TODO: Fix tree
-		// TODO: Update task
-		return nil
-	})
-
-	return p
-}
-
 func (p *periodic) MoveToMyTasksSection(name string) *periodic {
 	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
 		utl, err := wc.GetMyUserTaskList()
