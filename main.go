@@ -48,7 +48,7 @@ func main() {
 
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
-		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later").
+		InMyTasksSections("Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later").
 		OnlyIncomplete().
 		WithoutDue().
 		PrintTasks().
