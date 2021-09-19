@@ -54,5 +54,13 @@ func main() {
 		PrintTasks().
 		MoveToMyTasksSection("Someday")
 
+	EverySeconds(30).
+		InWorkspace("flamingcow.io").
+		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
+		OnlyIncomplete().
+		WithUnlinkedURL().
+		PrintTasks().
+		FixUnlinkedURL()
+
 	Loop()
 }

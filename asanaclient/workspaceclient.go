@@ -44,11 +44,11 @@ type Tag struct {
 }
 
 type Task struct {
-	GID             string      `json:"gid"`
-	Name            string      `json:"name"`
-	DueOn           string      `json:"due_on"`
+	GID             string      `json:"gid,omitempty"`
+	Name            string      `json:"name,omitempty"`
+	DueOn           string      `json:"due_on,omitempty"`
 	ParsedDueOn     *civil.Date `json:"-"`
-	HTMLNotes       string      `json:"html_notes"`
+	HTMLNotes       string      `json:"html_notes,omitempty"`
 	ParsedHTMLNotes *html.Node  `json:"-"`
 }
 
@@ -94,12 +94,20 @@ type tagsResponse struct {
 	Data []*Tag `json:"data"`
 }
 
+type taskResponse struct {
+	Data *Task `json:"data"`
+}
+
 type tasksResponse struct {
 	Data []*Task `json:"data"`
 }
 
 type userResponse struct {
 	Data *User `json:"data"`
+}
+
+type taskUpdate struct {
+	Data *Task `json:"data"`
 }
 
 func (wc *WorkspaceClient) GetMe() (*User, error) {
@@ -301,6 +309,24 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 	}
 
 	return resp.Data, nil
+}
+
+func (wc *WorkspaceClient) UpdateTask(task *Task) error {
+	path := fmt.Sprintf("tasks/%s", task.GID)
+
+	task.GID = ""
+
+	update := &taskUpdate{
+		Data: task,
+	}
+
+	resp := &taskResponse{}
+	err := wc.client.put(path, update, resp)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *Project) String() string {

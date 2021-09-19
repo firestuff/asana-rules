@@ -116,14 +116,26 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 }
 
 func (c *Client) post(path string, body interface{}, out interface{}) error {
+	return c.doWithBody("POST", path, body, out)
+}
+
+func (c *Client) put(path string, body interface{}, out interface{}) error {
+	return c.doWithBody("PUT", path, body, out)
+}
+
+func (c *Client) doWithBody(method string, path string, body interface{}, out interface{}) error {
 	url := fmt.Sprintf("%s%s", baseURL, path)
 
-	enc, err := json.Marshal(body)
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+
+	err := enc.Encode(body)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(enc))
+	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
 		return err
 	}

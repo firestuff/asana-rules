@@ -1,5 +1,6 @@
 package asanarules
 
+import "bytes"
 import "fmt"
 import "math/rand"
 import "strings"
@@ -8,6 +9,7 @@ import "time"
 import "cloud.google.com/go/civil"
 import "github.com/firestuff/asana-rules/asanaclient"
 import "golang.org/x/net/html"
+import "golang.org/x/net/html/atom"
 
 type queryMutator func(*asanaclient.WorkspaceClient, *asanaclient.SearchQuery) error
 type taskActor func(*asanaclient.WorkspaceClient, *asanaclient.Task) error
@@ -231,6 +233,30 @@ func (p *periodic) WithoutDue() *periodic {
 }
 
 // Task actors
+func (p *periodic) FixUnlinkedURL() *periodic {
+	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
+		fixUnlinkedURL(t.ParsedHTMLNotes)
+
+		buf := &bytes.Buffer{}
+
+		err := html.Render(buf, t.ParsedHTMLNotes)
+		if err != nil {
+			return err
+		}
+
+		notes := buf.String()
+
+		update := &asanaclient.Task{
+			GID:       t.GID,
+			HTMLNotes: strings.TrimSuffix(strings.TrimPrefix(notes, "<html><head></head>"), "</html>"),
+		}
+
+		return wc.UpdateTask(update)
+	})
+
+	return p
+}
+
 func (p *periodic) MoveToMyTasksSection(name string) *periodic {
 	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
 		utl, err := wc.GetMyUserTaskList()
@@ -344,6 +370,79 @@ func (p *periodic) exec(c *asanaclient.Client) error {
 }
 
 // Helpers
+func fixUnlinkedURL(node *html.Node) {
+	if node == nil {
+		return
+	}
+
+	if node.Type == html.ElementNode && node.Data == "a" {
+		// Don't go down this tree, since it's a link
+		return
+	}
+
+	if node.Type == html.TextNode {
+		accum := []string{}
+		nodes := []*html.Node{}
+
+		for _, line := range strings.Split(node.Data, "\n") {
+			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+				if len(accum) > 0 {
+					accum = append(accum, "") // Trailing newline
+					nodes = append(nodes, &html.Node{
+						Type: html.TextNode,
+						Data: strings.Join(accum, "\n"),
+					})
+					accum = []string{""}
+				}
+
+				nodes = append(nodes, &html.Node{
+					Type:     html.ElementNode,
+					Data:     "a",
+					DataAtom: atom.A,
+					Attr: []html.Attribute{
+						html.Attribute{
+							Key: "href",
+							Val: line,
+						},
+					},
+					FirstChild: &html.Node{
+						Type: html.TextNode,
+						Data: line,
+					},
+				})
+			} else {
+				accum = append(accum, line)
+			}
+		}
+
+		if len(nodes) == 0 {
+			return
+		}
+
+		nodes = append(nodes, &html.Node{
+			Type: html.TextNode,
+			Data: strings.Join(accum, "\n"),
+		})
+
+		for i, iter := range nodes {
+			if i == len(nodes)-1 {
+				// Last node
+				iter.NextSibling = node.NextSibling
+			} else {
+				iter.NextSibling = nodes[i+1]
+			}
+		}
+
+		node.Data = ""
+		node.NextSibling = nodes[0]
+
+		return
+	}
+
+	fixUnlinkedURL(node.FirstChild)
+	fixUnlinkedURL(node.NextSibling)
+}
+
 func hasUnlinkedURL(node *html.Node) bool {
 	if node == nil {
 		return false
@@ -354,9 +453,12 @@ func hasUnlinkedURL(node *html.Node) bool {
 		return false
 	}
 
-	if node.Type == html.TextNode && (strings.HasPrefix(node.Data, "http://") ||
-		strings.HasPrefix(node.Data, "https://")) {
-		return true
+	if node.Type == html.TextNode {
+		for _, line := range strings.Split(node.Data, "\n") {
+			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+				return true
+			}
+		}
 	}
 
 	if hasUnlinkedURL(node.FirstChild) {
