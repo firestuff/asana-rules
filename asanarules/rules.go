@@ -380,67 +380,60 @@ func fixUnlinkedURL(node *html.Node) {
 		return
 	}
 
-	if node.Type == html.TextNode {
-		accum := []string{}
-		nodes := []*html.Node{}
-
-		for _, line := range strings.Split(node.Data, "\n") {
-			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-				if len(accum) > 0 {
-					accum = append(accum, "") // Trailing newline
-					nodes = append(nodes, &html.Node{
-						Type: html.TextNode,
-						Data: strings.Join(accum, "\n"),
-					})
-					accum = []string{""}
-				}
-
-				nodes = append(nodes, &html.Node{
-					Type:     html.ElementNode,
-					Data:     "a",
-					DataAtom: atom.A,
-					Attr: []html.Attribute{
-						html.Attribute{
-							Key: "href",
-							Val: line,
-						},
-					},
-					FirstChild: &html.Node{
-						Type: html.TextNode,
-						Data: line,
-					},
-				})
-			} else {
-				accum = append(accum, line)
-			}
-		}
-
-		if len(nodes) == 0 {
-			return
-		}
-
-		nodes = append(nodes, &html.Node{
-			Type: html.TextNode,
-			Data: strings.Join(accum, "\n"),
-		})
-
-		for i, iter := range nodes {
-			if i == len(nodes)-1 {
-				// Last node
-				iter.NextSibling = node.NextSibling
-			} else {
-				iter.NextSibling = nodes[i+1]
-			}
-		}
-
-		node.Data = ""
-		node.NextSibling = nodes[0]
-
-		return
-	}
-
 	fixUnlinkedURL(node.FirstChild)
 	fixUnlinkedURL(node.NextSibling)
+
+	if nodeHasUnlinkedURL(node) {
+		next := node.NextSibling
+
+		splitTextNodes(node)
+
+		for iter := node; iter != next; iter = iter.NextSibling {
+			if !nodeHasUnlinkedURL(iter) {
+				continue
+			}
+
+			iter.FirstChild = &html.Node{
+				Type: html.TextNode,
+				Data: iter.Data,
+			}
+
+			iter.Type = html.ElementNode
+			iter.Attr = append(iter.Attr, html.Attribute{
+				Key: "href",
+				Val: iter.Data,
+			})
+			iter.Data = "a"
+			iter.DataAtom = atom.A
+		}
+	}
+}
+
+func splitTextNodes(node *html.Node) {
+	prev := node
+	lines := strings.Split(node.Data, "\n")
+	node.Data = ""
+
+	for i, line := range lines {
+		prev.NextSibling = &html.Node{
+			Type:        html.TextNode,
+			Data:        line,
+			NextSibling: prev.NextSibling,
+		}
+		prev = prev.NextSibling
+
+		if i == len(lines)-1 {
+			// No newline after last line
+			break
+		}
+
+		prev.NextSibling = &html.Node{
+			Type:        html.TextNode,
+			Data:        "\n",
+			NextSibling: prev.NextSibling,
+		}
+		prev = prev.NextSibling
+	}
 }
 
 func hasUnlinkedURL(node *html.Node) bool {
@@ -453,12 +446,8 @@ func hasUnlinkedURL(node *html.Node) bool {
 		return false
 	}
 
-	if node.Type == html.TextNode {
-		for _, line := range strings.Split(node.Data, "\n") {
-			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
-				return true
-			}
-		}
+	if nodeHasUnlinkedURL(node) {
+		return true
 	}
 
 	if hasUnlinkedURL(node.FirstChild) {
@@ -467,6 +456,18 @@ func hasUnlinkedURL(node *html.Node) bool {
 
 	if hasUnlinkedURL(node.NextSibling) {
 		return true
+	}
+
+	return false
+}
+
+func nodeHasUnlinkedURL(node *html.Node) bool {
+	if node.Type == html.TextNode {
+		for _, line := range strings.Split(node.Data, "\n") {
+			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+				return true
+			}
+		}
 	}
 
 	return false
