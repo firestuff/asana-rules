@@ -1,4 +1,4 @@
-package asanaclient
+package client
 
 import "fmt"
 import "net/url"

@@ -1,4 +1,4 @@
-package asanarules
+package rules
 
 import "bytes"
 import "fmt"
@@ -7,14 +7,14 @@ import "strings"
 import "time"
 
 import "cloud.google.com/go/civil"
-import "github.com/firestuff/asana-rules/asanaclient"
+import "github.com/firestuff/automana/client"
 import "golang.org/x/net/html"
 import "golang.org/x/net/html/atom"
 
-type queryMutator func(*asanaclient.WorkspaceClient, *asanaclient.SearchQuery) error
-type taskActor func(*asanaclient.WorkspaceClient, *asanaclient.Task) error
-type taskFilter func(*asanaclient.WorkspaceClient, *asanaclient.Task) (bool, error)
-type workspaceClientGetter func(*asanaclient.Client) (*asanaclient.WorkspaceClient, error)
+type queryMutator func(*client.WorkspaceClient, *client.SearchQuery) error
+type taskActor func(*client.WorkspaceClient, *client.Task) error
+type taskFilter func(*client.WorkspaceClient, *client.Task) (bool, error)
+type workspaceClientGetter func(*client.Client) (*client.WorkspaceClient, error)
 
 type periodic struct {
 	period int
@@ -40,10 +40,10 @@ func EverySeconds(seconds int) *periodic {
 }
 
 func Loop() {
-	client := asanaclient.NewClientFromEnv()
+	c := client.NewClientFromEnv()
 
 	for _, periodic := range periodics {
-		periodic.start(client)
+		periodic.start(c)
 	}
 
 	for _, periodic := range periodics {
@@ -56,7 +56,7 @@ func (p *periodic) InWorkspace(name string) *periodic {
 		panic("Multiple calls to InWorkspace()")
 	}
 
-	p.workspaceClientGetter = func(c *asanaclient.Client) (*asanaclient.WorkspaceClient, error) {
+	p.workspaceClientGetter = func(c *client.Client) (*client.WorkspaceClient, error) {
 		return c.InWorkspace(name)
 	}
 
@@ -65,7 +65,7 @@ func (p *periodic) InWorkspace(name string) *periodic {
 
 // Query mutators
 func (p *periodic) InMyTasksSections(names ...string) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		utl, err := wc.GetMyUserTaskList()
 		if err != nil {
 			return err
@@ -92,7 +92,7 @@ func (p *periodic) InMyTasksSections(names ...string) *periodic {
 }
 
 func (p *periodic) DueInDays(days int) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if q.DueOn != nil {
 			return fmt.Errorf("Multiple clauses set DueOn")
 		}
@@ -107,7 +107,7 @@ func (p *periodic) DueInDays(days int) *periodic {
 }
 
 func (p *periodic) DueInAtLeastDays(days int) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if q.DueAfter != nil {
 			return fmt.Errorf("Multiple clauses set DueAfter")
 		}
@@ -122,7 +122,7 @@ func (p *periodic) DueInAtLeastDays(days int) *periodic {
 }
 
 func (p *periodic) DueInAtMostDays(days int) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if q.DueBefore != nil {
 			return fmt.Errorf("Multiple clauses set DueBefore")
 		}
@@ -137,12 +137,12 @@ func (p *periodic) DueInAtMostDays(days int) *periodic {
 }
 
 func (p *periodic) OnlyIncomplete() *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if q.Completed != nil {
 			return fmt.Errorf("Multiple clauses set Completed")
 		}
 
-		q.Completed = asanaclient.FALSE
+		q.Completed = client.FALSE
 		return nil
 	})
 
@@ -150,12 +150,12 @@ func (p *periodic) OnlyIncomplete() *periodic {
 }
 
 func (p *periodic) OnlyComplete() *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if q.Completed != nil {
 			return fmt.Errorf("Multiple clauses set Completed")
 		}
 
-		q.Completed = asanaclient.TRUE
+		q.Completed = client.TRUE
 		return nil
 	})
 
@@ -163,7 +163,7 @@ func (p *periodic) OnlyComplete() *periodic {
 }
 
 func (p *periodic) WithTagsAnyOf(names ...string) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if len(q.TagsAny) > 0 {
 			return fmt.Errorf("Multiple clauses set TagsAny")
 		}
@@ -189,7 +189,7 @@ func (p *periodic) WithTagsAnyOf(names ...string) *periodic {
 }
 
 func (p *periodic) WithoutTagsAnyOf(names ...string) *periodic {
-	p.queryMutators = append(p.queryMutators, func(wc *asanaclient.WorkspaceClient, q *asanaclient.SearchQuery) error {
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
 		if len(q.TagsNot) > 0 {
 			return fmt.Errorf("Multiple clauses set TagsNot")
 		}
@@ -216,7 +216,7 @@ func (p *periodic) WithoutTagsAnyOf(names ...string) *periodic {
 
 // Task filters
 func (p *periodic) WithUnlinkedURL() *periodic {
-	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
+	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, t *client.Task) (bool, error) {
 		return hasUnlinkedURL(t.ParsedHTMLNotes), nil
 	})
 
@@ -225,7 +225,7 @@ func (p *periodic) WithUnlinkedURL() *periodic {
 
 func (p *periodic) WithoutDue() *periodic {
 	// We can't mutate the query because due_on=null is buggy in the Asana API
-	p.taskFilters = append(p.taskFilters, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) (bool, error) {
+	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, t *client.Task) (bool, error) {
 		return t.ParsedDueOn == nil, nil
 	})
 
@@ -234,7 +234,7 @@ func (p *periodic) WithoutDue() *periodic {
 
 // Task actors
 func (p *periodic) FixUnlinkedURL() *periodic {
-	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
+	p.taskActors = append(p.taskActors, func(wc *client.WorkspaceClient, t *client.Task) error {
 		fixUnlinkedURL(t.ParsedHTMLNotes)
 
 		buf := &bytes.Buffer{}
@@ -246,7 +246,7 @@ func (p *periodic) FixUnlinkedURL() *periodic {
 
 		notes := buf.String()
 
-		update := &asanaclient.Task{
+		update := &client.Task{
 			GID:       t.GID,
 			HTMLNotes: strings.TrimSuffix(strings.TrimPrefix(notes, "<html><head></head>"), "</html>"),
 		}
@@ -258,7 +258,7 @@ func (p *periodic) FixUnlinkedURL() *periodic {
 }
 
 func (p *periodic) MoveToMyTasksSection(name string) *periodic {
-	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
+	p.taskActors = append(p.taskActors, func(wc *client.WorkspaceClient, t *client.Task) error {
 		utl, err := wc.GetMyUserTaskList()
 		if err != nil {
 			return err
@@ -276,7 +276,7 @@ func (p *periodic) MoveToMyTasksSection(name string) *periodic {
 }
 
 func (p *periodic) PrintTasks() *periodic {
-	p.taskActors = append(p.taskActors, func(wc *asanaclient.WorkspaceClient, t *asanaclient.Task) error {
+	p.taskActors = append(p.taskActors, func(wc *client.WorkspaceClient, t *client.Task) error {
 		fmt.Printf("%s\n", t)
 		return nil
 	})
@@ -285,7 +285,7 @@ func (p *periodic) PrintTasks() *periodic {
 }
 
 // Infra
-func (p *periodic) start(client *asanaclient.Client) {
+func (p *periodic) start(client *client.Client) {
 	err := p.validate()
 	if err != nil {
 		panic(err)
@@ -302,7 +302,7 @@ func (p *periodic) wait() {
 	<-p.done
 }
 
-func (p *periodic) loop(client *asanaclient.Client) {
+func (p *periodic) loop(client *client.Client) {
 	for {
 		time.Sleep(time.Duration(rand.Intn(p.period)) * time.Second)
 
@@ -316,13 +316,13 @@ func (p *periodic) loop(client *asanaclient.Client) {
 	close(p.done)
 }
 
-func (p *periodic) exec(c *asanaclient.Client) error {
+func (p *periodic) exec(c *client.Client) error {
 	wc, err := p.workspaceClientGetter(c)
 	if err != nil {
 		return err
 	}
 
-	q := &asanaclient.SearchQuery{}
+	q := &client.SearchQuery{}
 
 	for _, mut := range p.queryMutators {
 		err = mut(wc, q)
@@ -336,7 +336,7 @@ func (p *periodic) exec(c *asanaclient.Client) error {
 		return err
 	}
 
-	filteredTasks := []*asanaclient.Task{}
+	filteredTasks := []*client.Task{}
 	for _, task := range tasks {
 		included := true
 

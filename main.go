@@ -1,6 +1,6 @@
 package main
 
-import . "github.com/firestuff/asana-rules/asanarules"
+import . "github.com/firestuff/automana/rules"
 
 func main() {
 	EverySeconds(30).
@@ -20,6 +20,15 @@ func main() {
 		WithTagsAnyOf("section=Tonight").
 		PrintTasks().
 		MoveToMyTasksSection("Tonight")
+
+	EverySeconds(30).
+		InWorkspace("flamingcow.io").
+		InMyTasksSections("Recently Assigned", "Today", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
+		OnlyIncomplete().
+		DueInDays(0).
+		WithTagsAnyOf("section=Meetings").
+		PrintTasks().
+		MoveToMyTasksSection("Meetings")
 
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
@@ -48,7 +57,7 @@ func main() {
 
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
-		InMyTasksSections("Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later").
+		InMyTasksSections("Today", "Meetings", "Tonight", "Upcoming", "Later").
 		OnlyIncomplete().
 		WithoutDue().
 		PrintTasks().
