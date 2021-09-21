@@ -8,7 +8,7 @@ import "net/http"
 import "net/url"
 import "os"
 
-import "github.com/firestuff/asana-rules/headers"
+import "github.com/firestuff/automana/headers"
 
 type Client struct {
 	client *http.Client
