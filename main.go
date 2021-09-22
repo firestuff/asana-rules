@@ -5,10 +5,10 @@ import . "github.com/firestuff/automana/rules"
 func main() {
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
-		InMyTasksSections("Recently Assigned", "Tonight", "Upcoming", "Later", "Someday").
+		InMyTasksSections("Recently Assigned", "Meetings", "Tonight", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		DueInDays(0).
-		WithoutTagsAnyOf("section=Tonight").
+		WithoutTagsAnyOf("section=Tonight", "section=Meetings").
 		PrintTasks().
 		MoveToMyTasksSection("Today")
 
@@ -38,14 +38,6 @@ func main() {
 		DueInAtMostDays(7).
 		PrintTasks().
 		MoveToMyTasksSection("Upcoming")
-
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
-		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Someday").
-		OnlyIncomplete().
-		DueInAtLeastDays(8).
-		PrintTasks().
-		MoveToMyTasksSection("Later")
 
 	EverySeconds(30).
 		InWorkspace("flamingcow.io").
