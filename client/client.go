@@ -23,6 +23,8 @@ type workspacesResponse struct {
 	Data []*workspace `json:"data"`
 }
 
+const perPage = 100
+
 func NewClient(token string) *Client {
 	c := &Client{
 		client: &http.Client{},
@@ -81,7 +83,7 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	if values == nil {
 		values = &url.Values{}
 	}
-	values.Add("limit", "100")
+	values.Set("limit", fmt.Sprintf("%d", perPage))
 
 	url := fmt.Sprintf("%s%s?%s", baseURL, path, values.Encode())
 

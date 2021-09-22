@@ -46,6 +46,7 @@ type Tag struct {
 type Task struct {
 	GID             string      `json:"gid,omitempty"`
 	Name            string      `json:"name,omitempty"`
+	CreatedAt       string      `json:"created_at,omitempty"`
 	DueOn           string      `json:"due_on,omitempty"`
 	ParsedDueOn     *civil.Date `json:"-"`
 	HTMLNotes       string      `json:"html_notes,omitempty"`
@@ -243,9 +244,12 @@ func (wc *WorkspaceClient) GetMyUserTaskList() (*Project, error) {
 func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 	path := fmt.Sprintf("workspaces/%s/tasks/search", wc.workspace.GID)
 
-	values := &url.Values{}
+	values := &url.Values{
+		"sort_by":        []string{"created_at"},
+		"sort_ascending": []string{"true"},
+	}
 
-	values.Add("opt_fields", "due_on,html_notes,name")
+	values.Add("opt_fields", "created_at,due_on,html_notes,name")
 
 	if len(q.SectionsAny) > 0 {
 		gids := []string{}
@@ -295,20 +299,42 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 		values.Add("tags.not", strings.Join(gids, ","))
 	}
 
-	resp := &tasksResponse{}
-	err := wc.client.get(path, values, resp)
-	if err != nil {
-		return nil, err
-	}
+	tasksByGID := map[string]*Task{}
 
-	for _, task := range resp.Data {
-		err := task.parse()
+	for {
+		resp := &tasksResponse{}
+		err := wc.client.get(path, values, resp)
 		if err != nil {
 			return nil, err
 		}
+
+		maxCreatedAt := ""
+
+		for _, task := range resp.Data {
+			err := task.parse()
+			if err != nil {
+				return nil, err
+			}
+			tasksByGID[task.GID] = task
+
+			if task.CreatedAt > maxCreatedAt {
+				maxCreatedAt = task.CreatedAt
+			}
+		}
+
+		if len(resp.Data) < perPage {
+			break
+		}
+
+		values.Set("created_at.after", maxCreatedAt)
 	}
 
-	return resp.Data, nil
+	tasks := []*Task{}
+	for _, task := range tasksByGID {
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
 }
 
 func (wc *WorkspaceClient) UpdateTask(task *Task) error {
