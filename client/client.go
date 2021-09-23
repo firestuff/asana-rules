@@ -14,16 +14,17 @@ type Client struct {
 	client *http.Client
 }
 
-type workspace struct {
-	GID  string `json:"gid"`
-	Name string `json:"name"`
+type errorDetails struct {
+	Message string `json:"message"`
 }
 
-type workspacesResponse struct {
-	Data []*workspace `json:"data"`
+type errorResponse struct {
+	Errors []*errorDetails `json:"errors"`
 }
 
-const perPage = 100
+type emptyResponse struct {
+	Data interface{} `json:"data"`
+}
 
 func NewClient(token string) *Client {
 	c := &Client{
@@ -41,43 +42,8 @@ func NewClientFromEnv() *Client {
 	return NewClient(os.Getenv("ASANA_TOKEN"))
 }
 
-func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
-	wrk, err := c.getWorkspaceByName(name)
-	if err != nil {
-		return nil, err
-	}
-
-	return &WorkspaceClient{
-		client:    c,
-		workspace: wrk,
-	}, nil
-}
-
-func (c *Client) getWorkspaces() ([]*workspace, error) {
-	resp := &workspacesResponse{}
-	err := c.get("workspaces", nil, resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
-}
-
-func (c *Client) getWorkspaceByName(name string) (*workspace, error) {
-	wrks, err := c.getWorkspaces()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, wrk := range wrks {
-		if wrk.Name == name {
-			return wrk, nil
-		}
-	}
-
-	return nil, fmt.Errorf("Workspace `%s` not found", name)
-}
-
 const baseURL = "https://app.asana.com/api/1.0/"
+const perPage = 100
 
 func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	if values == nil {
@@ -163,8 +129,4 @@ func (c *Client) doWithBody(method string, path string, body interface{}, out in
 	}
 
 	return nil
-}
-
-func (wrk *workspace) String() string {
-	return fmt.Sprintf("%s (%s)", wrk.GID, wrk.Name)
 }
