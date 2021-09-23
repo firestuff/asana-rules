@@ -20,6 +20,7 @@ type sectionAddTaskRequest struct {
 }
 
 func (wc *WorkspaceClient) GetSections(project *Project) ([]*Section, error) {
+	// TODO: Handle pagination
 	path := fmt.Sprintf("projects/%s/sections", project.GID)
 	resp := &sectionsResponse{}
 	err := wc.client.get(path, nil, resp)
@@ -76,6 +77,7 @@ func (wc *WorkspaceClient) AddTaskToSection(task *Task, section *Section) error 
 }
 
 func (wc *WorkspaceClient) GetTasksFromSection(section *Section) ([]*Task, error) {
+	// TODO: Handle pagination
 	path := fmt.Sprintf("sections/%s/tasks", section.GID)
 	resp := &tasksResponse{}
 	err := wc.client.get(path, nil, resp)

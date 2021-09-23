@@ -12,6 +12,7 @@ type tagsResponse struct {
 }
 
 func (wc *WorkspaceClient) GetTags() ([]*Tag, error) {
+	// TODO: Handle pagination
 	path := fmt.Sprintf("workspaces/%s/tags", wc.workspace.GID)
 	resp := &tagsResponse{}
 	err := wc.client.get(path, nil, resp)

@@ -24,6 +24,7 @@ func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
 }
 
 func (c *Client) GetWorkspaces() ([]*Workspace, error) {
+	// TODO: Handle pagination
 	resp := &workspacesResponse{}
 	err := c.get("workspaces", nil, resp)
 	if err != nil {

@@ -16,6 +16,7 @@ type projectsResponse struct {
 }
 
 func (wc *WorkspaceClient) GetProjects() ([]*Project, error) {
+	// TODO: Handle pagination
 	path := fmt.Sprintf("workspaces/%s/projects", wc.workspace.GID)
 	resp := &projectsResponse{}
 	err := wc.client.get(path, nil, resp)
