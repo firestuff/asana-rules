@@ -25,14 +25,16 @@ func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
 	}, nil
 }
 
-func (c *Client) GetWorkspaces() (ret []*Workspace, err error) {
+func (c *Client) GetWorkspaces() ([]*Workspace, error) {
+	ret := []*Workspace{}
+
 	values := &url.Values{}
 
 	for {
 		resp := &workspacesResponse{}
-		err = c.get("workspaces", values, resp)
+		err := c.get("workspaces", values, resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		ret = append(ret, resp.Data...)
@@ -44,7 +46,7 @@ func (c *Client) GetWorkspaces() (ret []*Workspace, err error) {
 		values.Set("offset", resp.NextPage.Offset)
 	}
 
-	return
+	return ret, nil
 }
 
 func (c *Client) GetWorkspaceByName(name string) (*Workspace, error) {

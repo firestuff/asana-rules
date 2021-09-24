@@ -13,7 +13,9 @@ type tagsResponse struct {
 	NextPage *nextPage `json:"next_page"`
 }
 
-func (wc *WorkspaceClient) GetTags() (ret []*Tag, err error) {
+func (wc *WorkspaceClient) GetTags() ([]*Tag, error) {
+	ret := []*Tag{}
+
 	path := fmt.Sprintf("workspaces/%s/tags", wc.workspace.GID)
 	values := &url.Values{}
 
@@ -21,7 +23,7 @@ func (wc *WorkspaceClient) GetTags() (ret []*Tag, err error) {
 		resp := &tagsResponse{}
 		err := wc.client.get(path, values, resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		ret = append(ret, resp.Data...)
@@ -33,7 +35,7 @@ func (wc *WorkspaceClient) GetTags() (ret []*Tag, err error) {
 		values.Set("offset", resp.NextPage.Offset)
 	}
 
-	return
+	return ret, nil
 }
 
 func (wc *WorkspaceClient) GetTagsByName() (map[string]*Tag, error) {

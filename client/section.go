@@ -21,15 +21,17 @@ type sectionAddTaskRequest struct {
 	Data *sectionAddTaskData `json:"data"`
 }
 
-func (wc *WorkspaceClient) GetSections(project *Project) (ret []*Section, err error) {
+func (wc *WorkspaceClient) GetSections(project *Project) ([]*Section, error) {
+	ret := []*Section{}
+
 	path := fmt.Sprintf("projects/%s/sections", project.GID)
 	values := &url.Values{}
 
 	for {
 		resp := &sectionsResponse{}
-		err = wc.client.get(path, values, resp)
+		err := wc.client.get(path, values, resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		ret = append(ret, resp.Data...)
@@ -41,7 +43,7 @@ func (wc *WorkspaceClient) GetSections(project *Project) (ret []*Section, err er
 		values.Set("offset", resp.NextPage.Offset)
 	}
 
-	return
+	return ret, nil
 }
 
 func (wc *WorkspaceClient) GetSectionsByName(project *Project) (map[string]*Section, error) {
@@ -90,15 +92,17 @@ func (wc *WorkspaceClient) AddTaskToSection(task *Task, section *Section) error 
 	return nil
 }
 
-func (wc *WorkspaceClient) GetTasksFromSection(section *Section) (ret []*Task, err error) {
+func (wc *WorkspaceClient) GetTasksFromSection(section *Section) ([]*Task, error) {
+	ret := []*Task{}
+
 	path := fmt.Sprintf("sections/%s/tasks", section.GID)
 	values := &url.Values{}
 
 	for {
 		resp := &tasksResponse{}
-		err = wc.client.get(path, values, resp)
+		err := wc.client.get(path, values, resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		ret = append(ret, resp.Data...)
@@ -110,7 +114,7 @@ func (wc *WorkspaceClient) GetTasksFromSection(section *Section) (ret []*Task, e
 		values.Set("offset", resp.NextPage.Offset)
 	}
 
-	return
+	return ret, nil
 }
 
 func (s *Section) String() string {

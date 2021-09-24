@@ -17,15 +17,17 @@ type projectsResponse struct {
 	NextPage *nextPage  `json:"next_page"`
 }
 
-func (wc *WorkspaceClient) GetProjects() (ret []*Project, err error) {
+func (wc *WorkspaceClient) GetProjects() ([]*Project, error) {
+	ret := []*Project{}
+
 	path := fmt.Sprintf("workspaces/%s/projects", wc.workspace.GID)
 	values := &url.Values{}
 
 	for {
 		resp := &projectsResponse{}
-		err = wc.client.get(path, values, resp)
+		err := wc.client.get(path, values, resp)
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		ret = append(ret, resp.Data...)
@@ -37,7 +39,7 @@ func (wc *WorkspaceClient) GetProjects() (ret []*Project, err error) {
 		values.Set("offset", resp.NextPage.Offset)
 	}
 
-	return
+	return ret, nil
 }
 
 func (p *Project) String() string {
