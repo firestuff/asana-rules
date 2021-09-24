@@ -1,6 +1,7 @@
 package client
 
 import "fmt"
+import "net/url"
 
 type Workspace struct {
 	GID  string `json:"gid"`
@@ -8,7 +9,8 @@ type Workspace struct {
 }
 
 type workspacesResponse struct {
-	Data []*Workspace `json:"data"`
+	Data     []*Workspace `json:"data"`
+	NextPage *nextPage    `json:"next_page"`
 }
 
 func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
@@ -24,13 +26,26 @@ func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
 }
 
 func (c *Client) GetWorkspaces() ([]*Workspace, error) {
-	// TODO: Handle pagination
-	resp := &workspacesResponse{}
-	err := c.get("workspaces", nil, resp)
-	if err != nil {
-		return nil, err
+	values := &url.Values{}
+	ret := []*Workspace{}
+
+	for {
+		resp := &workspacesResponse{}
+		err := c.get("workspaces", values, resp)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, resp.Data...)
+
+		if resp.NextPage == nil {
+			break
+		}
+
+		values.Set("offset", resp.NextPage.Offset)
 	}
-	return resp.Data, nil
+
+	return ret, nil
 }
 
 func (c *Client) GetWorkspaceByName(name string) (*Workspace, error) {
