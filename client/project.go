@@ -1,6 +1,7 @@
 package client
 
 import "fmt"
+import "net/url"
 
 type Project struct {
 	GID  string `json:"gid"`
@@ -12,18 +13,31 @@ type projectResponse struct {
 }
 
 type projectsResponse struct {
-	Data []*Project `json:"data"`
+	Data     []*Project `json:"data"`
+	NextPage *nextPage  `json:"next_page"`
 }
 
-func (wc *WorkspaceClient) GetProjects() ([]*Project, error) {
-	// TODO: Handle pagination
+func (wc *WorkspaceClient) GetProjects() (ret []*Project, err error) {
 	path := fmt.Sprintf("workspaces/%s/projects", wc.workspace.GID)
-	resp := &projectsResponse{}
-	err := wc.client.get(path, nil, resp)
-	if err != nil {
-		return nil, err
+	values := &url.Values{}
+
+	for {
+		resp := &projectsResponse{}
+		err = wc.client.get(path, values, resp)
+		if err != nil {
+			return
+		}
+
+		ret = append(ret, resp.Data...)
+
+		if resp.NextPage == nil {
+			break
+		}
+
+		values.Set("offset", resp.NextPage.Offset)
 	}
-	return resp.Data, nil
+
+	return
 }
 
 func (p *Project) String() string {

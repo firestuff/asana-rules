@@ -1,6 +1,7 @@
 package client
 
 import "fmt"
+import "net/url"
 
 type Tag struct {
 	GID  string `json:"gid"`
@@ -8,18 +9,31 @@ type Tag struct {
 }
 
 type tagsResponse struct {
-	Data []*Tag `json:"data"`
+	Data     []*Tag    `json:"data"`
+	NextPage *nextPage `json:"next_page"`
 }
 
-func (wc *WorkspaceClient) GetTags() ([]*Tag, error) {
-	// TODO: Handle pagination
+func (wc *WorkspaceClient) GetTags() (ret []*Tag, err error) {
 	path := fmt.Sprintf("workspaces/%s/tags", wc.workspace.GID)
-	resp := &tagsResponse{}
-	err := wc.client.get(path, nil, resp)
-	if err != nil {
-		return nil, err
+	values := &url.Values{}
+
+	for {
+		resp := &tagsResponse{}
+		err := wc.client.get(path, values, resp)
+		if err != nil {
+			return
+		}
+
+		ret = append(ret, resp.Data...)
+
+		if resp.NextPage == nil {
+			break
+		}
+
+		values.Set("offset", resp.NextPage.Offset)
 	}
-	return resp.Data, nil
+
+	return
 }
 
 func (wc *WorkspaceClient) GetTagsByName() (map[string]*Tag, error) {
