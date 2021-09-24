@@ -26,6 +26,12 @@ type emptyResponse struct {
 	Data interface{} `json:"data"`
 }
 
+type nextPage struct {
+	Offset string `json:"offset"`
+	Path   string `json:"path"`
+	URI    string `json:"uri"`
+}
+
 func NewClient(token string) *Client {
 	c := &Client{
 		client: &http.Client{},

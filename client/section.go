@@ -1,6 +1,7 @@
 package client
 
 import "fmt"
+import "net/url"
 
 type Section struct {
 	GID  string `json:"gid"`
@@ -8,7 +9,8 @@ type Section struct {
 }
 
 type sectionsResponse struct {
-	Data []*Section `json:"data"`
+	Data     []*Section `json:"data"`
+	NextPage *nextPage  `json:"next_page"`
 }
 
 type sectionAddTaskData struct {
@@ -20,14 +22,28 @@ type sectionAddTaskRequest struct {
 }
 
 func (wc *WorkspaceClient) GetSections(project *Project) ([]*Section, error) {
-	// TODO: Handle pagination
 	path := fmt.Sprintf("projects/%s/sections", project.GID)
-	resp := &sectionsResponse{}
-	err := wc.client.get(path, nil, resp)
-	if err != nil {
-		return nil, err
+	values := &url.Values{}
+
+	ret := []*Section{}
+
+	for {
+		resp := &sectionsResponse{}
+		err := wc.client.get(path, values, resp)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, resp.Data...)
+
+		if resp.NextPage == nil {
+			break
+		}
+
+		values.Set("offset", resp.NextPage.Offset)
 	}
-	return resp.Data, nil
+
+	return ret, nil
 }
 
 func (wc *WorkspaceClient) GetSectionsByName(project *Project) (map[string]*Section, error) {
