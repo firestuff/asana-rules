@@ -21,7 +21,8 @@ type taskResponse struct {
 }
 
 type tasksResponse struct {
-	Data []*Task `json:"data"`
+	Data     []*Task   `json:"data"`
+	NextPage *nextPage `json:"next_page"`
 }
 
 type taskUpdate struct {
