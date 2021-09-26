@@ -2,7 +2,6 @@ package rules
 
 import "bytes"
 import "fmt"
-import "math/rand"
 import "strings"
 import "time"
 
@@ -28,6 +27,7 @@ type periodic struct {
 
 var periodics = []*periodic{}
 
+// TODO: Remove this, as it's now ignored
 func EverySeconds(seconds int) *periodic {
 	ret := &periodic{
 		period: seconds,
@@ -304,8 +304,6 @@ func (p *periodic) wait() {
 
 func (p *periodic) loop(client *client.Client) {
 	for {
-		time.Sleep(time.Duration(rand.Intn(p.period)) * time.Second)
-
 		err := p.exec(client)
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err)

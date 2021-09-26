@@ -84,6 +84,7 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 
 	for {
 		resp := &tasksResponse{}
+		wc.rateLimitSearch.Acquire1()
 		err := wc.client.get(path, values, resp)
 		if err != nil {
 			return nil, err

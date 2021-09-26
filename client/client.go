@@ -70,7 +70,10 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 		return err
 	}
 
+	c.rateLimit.Acquire1()
+	c.concurrencyLimitRead.Acquire1()
 	resp, err := c.client.Do(req)
+	c.concurrencyLimitRead.Release1()
 	if err != nil {
 		return err
 	}
@@ -120,7 +123,10 @@ func (c *Client) doWithBody(method string, path string, body interface{}, out in
 		return err
 	}
 
+	c.rateLimit.Acquire1()
+	c.concurrencyLimitWrite.Acquire1()
 	resp, err := c.client.Do(req)
+	c.concurrencyLimitWrite.Release1()
 	if err != nil {
 		return err
 	}
