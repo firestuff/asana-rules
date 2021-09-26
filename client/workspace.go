@@ -20,8 +20,9 @@ func (c *Client) InWorkspace(name string) (*WorkspaceClient, error) {
 	}
 
 	return &WorkspaceClient{
-		client:    c,
-		workspace: wrk,
+		client:          c,
+		workspace:       wrk,
+		rateLimitSearch: NewRateLimitPerMinute(60, 60),
 	}, nil
 }
 

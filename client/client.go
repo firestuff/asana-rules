@@ -11,7 +11,10 @@ import "os"
 import "github.com/firestuff/automana/headers"
 
 type Client struct {
-	client *http.Client
+	client                *http.Client
+	rateLimit             *RateLimit
+	concurrencyLimitRead  *ConcurrencyLimit
+	concurrencyLimitWrite *ConcurrencyLimit
 }
 
 type errorDetails struct {
@@ -34,7 +37,10 @@ type nextPage struct {
 
 func NewClient(token string) *Client {
 	c := &Client{
-		client: &http.Client{},
+		client:                &http.Client{},
+		rateLimit:             NewRateLimitPerMinute(1500, 1500),
+		concurrencyLimitRead:  NewConcurrencyLimit(50),
+		concurrencyLimitWrite: NewConcurrencyLimit(15),
 	}
 
 	hdrs := headers.NewHeaders(c.client)
