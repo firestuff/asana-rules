@@ -38,7 +38,7 @@ type nextPage struct {
 func NewClient(token string) *Client {
 	c := &Client{
 		client:                &http.Client{},
-		rateLimit:             NewRateLimitPerMinute(1500, 1500),
+		rateLimit:             NewRateLimitPerMinute(600, 10),
 		concurrencyLimitRead:  NewConcurrencyLimit(50),
 		concurrencyLimitWrite: NewConcurrencyLimit(15),
 	}

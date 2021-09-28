@@ -3,8 +3,7 @@ package main
 import . "github.com/firestuff/automana/rules"
 
 func main() {
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Meetings", "Tonight", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		DueInDays(0).
@@ -12,8 +11,7 @@ func main() {
 		PrintTasks().
 		MoveToMyTasksSection("Today")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		DueInDays(0).
@@ -21,8 +19,7 @@ func main() {
 		PrintTasks().
 		MoveToMyTasksSection("Tonight")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		DueInDays(0).
@@ -30,8 +27,7 @@ func main() {
 		PrintTasks().
 		MoveToMyTasksSection("Meetings")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Later", "Someday").
 		OnlyIncomplete().
 		DueInAtLeastDays(1).
@@ -39,24 +35,21 @@ func main() {
 		PrintTasks().
 		MoveToMyTasksSection("Upcoming")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Someday").
 		OnlyIncomplete().
 		DueInAtLeastDays(8).
 		PrintTasks().
 		MoveToMyTasksSection("Later")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Today", "Meetings", "Tonight", "Upcoming", "Later").
 		OnlyIncomplete().
 		WithoutDue().
 		PrintTasks().
 		MoveToMyTasksSection("Someday")
 
-	EverySeconds(30).
-		InWorkspace("flamingcow.io").
+	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
 		OnlyIncomplete().
 		WithUnlinkedURL().

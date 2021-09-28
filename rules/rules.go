@@ -16,8 +16,7 @@ type taskFilter func(*client.WorkspaceClient, *client.Task) (bool, error)
 type workspaceClientGetter func(*client.Client) (*client.WorkspaceClient, error)
 
 type periodic struct {
-	period int
-	done   chan bool
+	done chan bool
 
 	workspaceClientGetter workspaceClientGetter
 	queryMutators         []queryMutator
@@ -26,18 +25,6 @@ type periodic struct {
 }
 
 var periodics = []*periodic{}
-
-// TODO: Remove this, as it's now ignored
-func EverySeconds(seconds int) *periodic {
-	ret := &periodic{
-		period: seconds,
-		done:   make(chan bool),
-	}
-
-	periodics = append(periodics, ret)
-
-	return ret
-}
 
 func Loop() {
 	c := client.NewClientFromEnv()
@@ -51,16 +38,17 @@ func Loop() {
 	}
 }
 
-func (p *periodic) InWorkspace(name string) *periodic {
-	if p.workspaceClientGetter != nil {
-		panic("Multiple calls to InWorkspace()")
+func InWorkspace(name string) *periodic {
+	ret := &periodic{
+		done: make(chan bool),
+		workspaceClientGetter: func(c *client.Client) (*client.WorkspaceClient, error) {
+			return c.InWorkspace(name)
+		},
 	}
 
-	p.workspaceClientGetter = func(c *client.Client) (*client.WorkspaceClient, error) {
-		return c.InWorkspace(name)
-	}
+	periodics = append(periodics, ret)
 
-	return p
+	return ret
 }
 
 // Query mutators
