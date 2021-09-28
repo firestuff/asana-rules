@@ -79,6 +79,11 @@ func (c *Client) get(path string, values *url.Values, out interface{}) error {
 	}
 	defer resp.Body.Close()
 
+	err = c.rateLimit.MaybeRetryAfter(resp)
+	if err != nil {
+		return err
+	}
+
 	dec := json.NewDecoder(resp.Body)
 
 	if resp.StatusCode != 200 {

@@ -1,5 +1,7 @@
 package client
 
+import "net/http"
+import "strconv"
 import "sync"
 import "time"
 
@@ -49,7 +51,21 @@ func (rl *RateLimit) AcquireN(cost float64) {
 	}
 }
 
-// Handle a Retry-After server response
+func (rl *RateLimit) MaybeRetryAfter(resp *http.Response) error {
+	header := resp.Header.Get("Retry-After")
+	if header == "" {
+		return nil
+	}
+
+	retryAfter, err := strconv.ParseInt(header, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	rl.RetryAfter(retryAfter)
+	return nil
+}
+
 func (rl *RateLimit) RetryAfter(seconds int64) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
