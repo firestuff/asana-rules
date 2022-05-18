@@ -7,13 +7,18 @@ import "cloud.google.com/go/civil"
 import "golang.org/x/net/html"
 
 type Task struct {
-	GID             string      `json:"gid,omitempty"`
-	Name            string      `json:"name,omitempty"`
-	CreatedAt       string      `json:"created_at,omitempty"`
-	DueOn           string      `json:"due_on,omitempty"`
-	ParsedDueOn     *civil.Date `json:"-"`
-	HTMLNotes       string      `json:"html_notes,omitempty"`
-	ParsedHTMLNotes *html.Node  `json:"-"`
+	GID             string           `json:"gid,omitempty"`
+	Name            string           `json:"name,omitempty"`
+	CreatedAt       string           `json:"created_at,omitempty"`
+	DueOn           string           `json:"due_on,omitempty"`
+	ParsedDueOn     *civil.Date      `json:"-"`
+	HTMLNotes       string           `json:"html_notes,omitempty"`
+	ParsedHTMLNotes *html.Node       `json:"-"`
+	AssigneeSection *AssigneeSection `json:"assignee_section"`
+}
+
+type AssigneeSection struct {
+	GID string `json:"gid,omitempty"`
 }
 
 type taskResponse struct {

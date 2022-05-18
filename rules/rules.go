@@ -12,7 +12,7 @@ import "golang.org/x/net/html/atom"
 
 type queryMutator func(*client.WorkspaceClient, *client.SearchQuery) error
 type taskActor func(*client.WorkspaceClient, *client.Task) error
-type taskFilter func(*client.WorkspaceClient, *client.Task) (bool, error)
+type taskFilter func(*client.WorkspaceClient, *client.SearchQuery, *client.Task) (bool, error)
 type workspaceClientGetter func(*client.Client) (*client.WorkspaceClient, error)
 
 type periodic struct {
@@ -54,6 +54,13 @@ func InWorkspace(name string) *periodic {
 // Query mutators
 func (p *periodic) InMyTasksSections(names ...string) *periodic {
 	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
+		u, err := wc.GetMe()
+		if err != nil {
+			return err
+		}
+
+		q.AssigneeAny = append(q.AssigneeAny, u)
+
 		utl, err := wc.GetMyUserTaskList()
 		if err != nil {
 			return err
@@ -74,6 +81,18 @@ func (p *periodic) InMyTasksSections(names ...string) *periodic {
 		}
 
 		return nil
+	})
+
+	// Backup filter if the API misbehaves
+	// Asana issue #600801
+	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, q *client.SearchQuery, t *client.Task) (bool, error) {
+		for _, sec := range q.SectionsAny {
+			if sec.GID == t.AssigneeSection.GID {
+				return true, nil
+			}
+		}
+
+		return false, nil
 	})
 
 	return p
@@ -204,7 +223,7 @@ func (p *periodic) WithoutTagsAnyOf(names ...string) *periodic {
 
 // Task filters
 func (p *periodic) WithUnlinkedURL() *periodic {
-	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, t *client.Task) (bool, error) {
+	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, _ *client.SearchQuery, t *client.Task) (bool, error) {
 		return hasUnlinkedURL(t.ParsedHTMLNotes), nil
 	})
 
@@ -213,7 +232,7 @@ func (p *periodic) WithUnlinkedURL() *periodic {
 
 func (p *periodic) WithoutDue() *periodic {
 	// We can't mutate the query because due_on=null is buggy in the Asana API
-	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, t *client.Task) (bool, error) {
+	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, _ *client.SearchQuery, t *client.Task) (bool, error) {
 		return t.ParsedDueOn == nil, nil
 	})
 
@@ -327,7 +346,7 @@ func (p *periodic) exec(c *client.Client) error {
 		included := true
 
 		for _, filter := range p.taskFilters {
-			include, err := filter(wc, task)
+			include, err := filter(wc, q, task)
 			if err != nil {
 				return err
 			}

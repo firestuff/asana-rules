@@ -7,6 +7,7 @@ import "strings"
 import "cloud.google.com/go/civil"
 
 type SearchQuery struct {
+	AssigneeAny []*User
 	SectionsAny []*Section
 	Completed   *bool
 	Due         *bool
@@ -26,11 +27,20 @@ func (wc *WorkspaceClient) Search(q *SearchQuery) ([]*Task, error) {
 	path := fmt.Sprintf("workspaces/%s/tasks/search", wc.workspace.GID)
 
 	values := &url.Values{
+		"is_subtask":     []string{"false"},
 		"sort_by":        []string{"created_at"},
 		"sort_ascending": []string{"true"},
 	}
 
-	values.Add("opt_fields", "created_at,due_on,html_notes,name")
+	values.Add("opt_fields", "assignee_section,created_at,due_on,html_notes,name")
+
+	if len(q.AssigneeAny) > 0 {
+		gids := []string{}
+		for _, u := range q.AssigneeAny {
+			gids = append(gids, u.GID)
+		}
+		values.Add("assignee.any", strings.Join(gids, ","))
+	}
 
 	if len(q.SectionsAny) > 0 {
 		gids := []string{}
