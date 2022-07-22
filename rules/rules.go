@@ -235,9 +235,15 @@ func (p *periodic) WithUnlinkedURL() *periodic {
 }
 
 func (p *periodic) WithoutDue() *periodic {
-	// We can't mutate the query because due_on=null is buggy in the Asana API
-	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, _ *client.SearchQuery, t *client.Task) (bool, error) {
-		return t.ParsedDueOn == nil, nil
+	p.queryMutators = append(p.queryMutators, func(wc *client.WorkspaceClient, q *client.SearchQuery) error {
+		if q.Due != nil {
+			return fmt.Errorf("Multiple clauses set Due")
+		}
+
+		d := false
+		q.Due = &d
+
+		return nil
 	})
 
 	return p
