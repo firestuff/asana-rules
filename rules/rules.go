@@ -86,6 +86,10 @@ func (p *periodic) InMyTasksSections(names ...string) *periodic {
 	// Backup filter if the API misbehaves
 	// Asana issue #600801
 	p.taskFilters = append(p.taskFilters, func(wc *client.WorkspaceClient, q *client.SearchQuery, t *client.Task) (bool, error) {
+		if t.AssigneeSection == nil {
+			return false, fmt.Errorf("missing assignee: %s", t)
+		}
+
 		for _, sec := range q.SectionsAny {
 			if sec.GID == t.AssigneeSection.GID {
 				return true, nil
