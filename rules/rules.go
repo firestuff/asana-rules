@@ -10,15 +10,17 @@ import "github.com/firestuff/automana/client"
 import "golang.org/x/net/html"
 import "golang.org/x/net/html/atom"
 
+type workspaceClientGetter func(*client.Client) (*client.WorkspaceClient, error)
+type gate func(*client.WorkspaceClient) (bool, error)
 type queryMutator func(*client.WorkspaceClient, *client.SearchQuery) error
 type taskActor func(*client.WorkspaceClient, *client.Task) error
 type taskFilter func(*client.WorkspaceClient, *client.SearchQuery, *client.Task) (bool, error)
-type workspaceClientGetter func(*client.Client) (*client.WorkspaceClient, error)
 
 type periodic struct {
 	done chan bool
 
 	workspaceClientGetter workspaceClientGetter
+	gates                 []gate
 	queryMutators         []queryMutator
 	taskFilters           []taskFilter
 	taskActors            []taskActor
@@ -49,6 +51,37 @@ func InWorkspace(name string) *periodic {
 	periodics = append(periodics, ret)
 
 	return ret
+}
+
+// Gates
+func (p *periodic) WhenBetween(tz, start, end string) *periodic {
+	p.gates = append(p.gates, func(wc *client.WorkspaceClient) (bool, error) {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return false, err
+		}
+
+		now := civil.TimeOf(time.Now().In(loc))
+
+		s, err := civil.ParseTime(start)
+		if err != nil {
+			return false, err
+		}
+
+		e, err := civil.ParseTime(end)
+		if err != nil {
+			return false, err
+		}
+
+		if timeBefore(e, s) {
+			// End is before start, so we wrap around midnight
+			return timeBefore(s, now) || timeBefore(now, e), nil
+		} else {
+			return timeBefore(s, now) && timeBefore(now, e), nil
+		}
+	})
+
+	return p
 }
 
 // Query mutators
@@ -337,6 +370,17 @@ func (p *periodic) exec(c *client.Client) error {
 		return err
 	}
 
+	for _, g := range p.gates {
+		ok, err := g(wc)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			return nil
+		}
+	}
+
 	q := &client.SearchQuery{}
 
 	for _, mut := range p.queryMutators {
@@ -486,4 +530,11 @@ func nodeHasUnlinkedURL(node *html.Node) bool {
 	}
 
 	return false
+}
+
+func timeBefore(t1, t2 civil.Time) bool {
+	return ((t1.Hour < t2.Hour) ||
+		(t1.Hour == t2.Hour && t1.Minute < t2.Minute) ||
+		(t1.Hour == t2.Hour && t1.Minute == t2.Minute && t1.Second < t2.Second) ||
+		(t1.Hour == t2.Hour && t1.Minute == t2.Minute && t1.Second == t2.Second && t1.Nanosecond < t2.Nanosecond))
 }

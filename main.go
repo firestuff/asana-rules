@@ -13,11 +13,21 @@ func main() {
 
 	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Meetings", "Maybe Today", "Upcoming", "Later", "Someday").
+		WhenBetween("America/Los_Angeles", "03:00:00", "17:00:00").
 		OnlyIncomplete().
 		DueInDays(0).
 		WithTagsAnyOf("section=Tonight").
 		PrintTasks().
 		MoveToMyTasksSection("Tonight")
+
+	InWorkspace("flamingcow.io").
+		InMyTasksSections("Recently Assigned", "Meetings", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
+		WhenBetween("America/Los_Angeles", "17:00:00", "03:00:00").
+		OnlyIncomplete().
+		DueInDays(0).
+		WithTagsAnyOf("section=Tonight").
+		PrintTasks().
+		MoveToMyTasksSection("Today")
 
 	InWorkspace("flamingcow.io").
 		InMyTasksSections("Recently Assigned", "Today", "Maybe Today", "Tonight", "Upcoming", "Later", "Someday").
