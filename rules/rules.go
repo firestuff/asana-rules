@@ -26,6 +26,31 @@ type periodic struct {
 	taskActors            []taskActor
 }
 
+type Weekday = time.Weekday
+
+const (
+	Sunday    = time.Sunday
+	Monday    = time.Monday
+	Tuesday   = time.Tuesday
+	Wednesday = time.Wednesday
+	Thursday  = time.Thursday
+	Friday    = time.Friday
+	Saturday  = time.Saturday
+)
+
+var WeekDays = []Weekday{
+	Monday,
+	Tuesday,
+	Wednesday,
+	Thursday,
+	Friday,
+}
+
+var WeekendDays = []Weekday{
+	Saturday,
+	Sunday,
+}
+
 var periodics = []*periodic{}
 
 func Loop() {
@@ -79,6 +104,27 @@ func (p *periodic) WhenBetween(tz, start, end string) *periodic {
 		} else {
 			return timeBefore(s, now) && timeBefore(now, e), nil
 		}
+	})
+
+	return p
+}
+
+func (p *periodic) WhenDayOfWeek(tz string, days []Weekday) *periodic {
+	p.gates = append(p.gates, func(wc *client.WorkspaceClient) (bool, error) {
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return false, err
+		}
+
+		wd := time.Now().In(loc).Weekday()
+
+		for _, d := range days {
+			if wd == d {
+				return true, nil
+			}
+		}
+
+		return false, nil
 	})
 
 	return p
